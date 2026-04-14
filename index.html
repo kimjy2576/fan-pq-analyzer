@@ -90,7 +90,7 @@ function rC(rpm){var m={800:0,1000:0,1200:0,1400:4,1600:1,1800:5,2000:2,2200:3};
 
 var S={tab:'setup',cfg:{mode:'discharge',name:'\uc2dc\ub85c\ucf54\ud32c A-150',duct:false,hx:false,evap:false,cond:false,filt:false,filtSz:'',d1:100,d2:60,cd:0.98,dFan:150,temp:20,atm:101.325,rh:50,sys:[{label:'\uc2dc\uc2a4\ud15c 1',md:'k',k:200,pts:[]}]},
 data:[{rpm:1200,dv:12,pg:45,w:28},{rpm:1200,dv:9.5,pg:68,w:32},{rpm:1200,dv:6.2,pg:95,w:35},{rpm:1200,dv:2.8,pg:125,w:30},{rpm:1200,dv:0.1,pg:148,w:22},{rpm:1600,dv:22,pg:82,w:65},{rpm:1600,dv:17,pg:120,w:75},{rpm:1600,dv:11,pg:168,w:82},{rpm:1600,dv:5,pg:220,w:70},{rpm:1600,dv:0.2,pg:262,w:48},{rpm:2000,dv:35,pg:128,w:125},{rpm:2000,dv:27,pg:188,w:142},{rpm:2000,dv:17,pg:265,w:155},{rpm:2000,dv:8,pg:345,w:130},{rpm:2000,dv:0.3,pg:410,w:85}],
-saved:JSON.parse(localStorage.getItem('fpq')||'[]'),cmpIds:[],refRpm:1600,mMode:'q',mTgt:2};
+saved:JSON.parse(localStorage.getItem('fpq')||'[]'),cmpIds:[],refRpm:1600,mMode:'q',mTgt:2,pqBep:true};
 function persist(){try{localStorage.setItem('fpq',JSON.stringify(S.saved));}catch(e){}}
 
 function h(t,a){var el=document.createElement(t);if(a)Object.keys(a).forEach(function(k){var v=a[k];if(v==null||v===false)return;if(k==='style'&&typeof v==='object')Object.assign(el.style,v);else if(k.slice(0,2)==='on')el.addEventListener(k.slice(2).toLowerCase(),v);else el.setAttribute(k,v);});for(var i=2;i<arguments.length;i++){var c=arguments[i];if(c==null||c===false)continue;if(Array.isArray(c))c.forEach(function(x){if(x!=null&&x!==false)el.appendChild(typeof x==='string'?document.createTextNode(x):x);});else el.appendChild(typeof c==='string'||typeof c==='number'?document.createTextNode(''+c):c);}return el;}
@@ -267,8 +267,35 @@ card.appendChild(h('div',{class:'br',style:'margin-top:10px'},
 return card;}
 
 // PQ
+function getPqBeps(ed,rpms){
+  return rpms.map(function(rpm){
+    var rd=ed.filter(function(d){return d.rpm===rpm;});
+    var xs=rd.map(function(d){return d.q;}),ye=rd.map(function(d){return d.eff;}),yp=rd.map(function(d){return d.pf;});
+    var fE=pFit(xs,ye),fP=pFit(xs,yp),col=rC(rpm);
+    var qb,pb;
+    if(fE&&fE.a<0){
+      qb=-fE.b/(2*fE.a);
+      var mn=Math.min.apply(null,xs),mx=Math.max.apply(null,xs);
+      if(qb>=mn&&qb<=mx){pb=fP?fP.ev(qb):rd[0].pf;}
+      else{var best=rd.reduce(function(a,b){return b.eff>a.eff?b:a;},rd[0]);qb=best.q;pb=fP?fP.ev(qb):best.pf;}
+    }else{var best2=rd.reduce(function(a,b){return b.eff>a.eff?b:a;},rd[0]);qb=best2.q;pb=fP?fP.ev(qb):best2.pf;}
+    var eb=fE?fE.ev(qb):0;
+    return{x:qb,y:pb,dx:qb.toFixed(2),dy:pb.toFixed(1),de:eb.toFixed(1),label:'BEP '+rpm,color:col};
+  });
+}
 function rPQ(){var ed=enr(S.data,S.cfg).filter(function(d){return d.rpm>0&&d.q>0;}),w=h('div');
-w.appendChild(h('div',{class:'card'},h('div',{class:'ct'},'PQ \ucee4\ube0c'),cht({data:ed.map(function(d){return{q:d.q,p:d.pf,_r:d.rpm};}),xk:'q',yk:'p',xl:'Q [CMM]',yl:'P_fan [Pa]',ttl:'Fan Static Pressure vs Airflow',fit:true,sys:S.cfg.sys})));
+var rpms=[],sn={};ed.forEach(function(d){if(!sn[d.rpm]){sn[d.rpm]=1;rpms.push(d.rpm);}});rpms.sort(function(a,b){return a-b;});
+var pqBeps=S.pqBep?getPqBeps(ed,rpms):[];
+var c1=h('div',{class:'card'},h('div',{class:'ct'},'PQ \ucee4\ube0c'));
+c1.appendChild(cht({data:ed.map(function(d){return{q:d.q,p:d.pf,_r:d.rpm};}),xk:'q',yk:'p',xl:'Q [CMM]',yl:'P_fan [Pa]',ttl:'Fan Static Pressure vs Airflow',fit:true,sys:S.cfg.sys,ann:pqBeps}));
+// Toggle + BEP info
+var opts=h('div',{style:'display:flex;align-items:center;gap:16px;margin-top:12px;flex-wrap:wrap'});
+opts.appendChild(mkCb('BEP \ud45c\uc2dc',S.pqBep,function(v){S.pqBep=v;R();}));
+if(S.pqBep&&pqBeps.length){
+  pqBeps.forEach(function(b){opts.appendChild(h('div',{style:'padding:5px 10px;border-radius:6px;border:1.5px solid '+b.color+';font-size:10px;display:flex;gap:8px;align-items:center'},h('span',{style:'color:'+b.color+';font-weight:800'},'\u25cf '+b.label),'Q='+b.dx+' CMM, P='+b.dy+' Pa, \u03b7='+b.de+'%'));});
+}
+c1.appendChild(opts);
+w.appendChild(c1);
 w.appendChild(h('div',{class:'card'},h('div',{class:'ct'},'\uc18c\ube44\uc804\ub825'),cht({data:ed.map(function(d){return{q:d.q,w:d.w,_r:d.rpm};}),xk:'q',yk:'w',xl:'Q [CMM]',yl:'W [W]',ttl:'Power vs Airflow',fit:true})));
 return w;}
 
