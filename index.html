@@ -136,11 +136,8 @@ rpms.forEach(function(rpm){var rd=data.filter(function(d){return d._r===rpm;}).s
 var sC2=['#64748b','#dc2626','#059669','#d97706','#7c3aed'];sys.forEach(function(sr,si){if(!sr.k||sr.k<=0)return;var pts2='';for(var i2=0;i2<=40;i2++){var qq=xM*i2/40,pp=sr.k*qq*qq;if(pp<=yM*1.1)pts2+=(pts2?',':'')+sx(qq).toFixed(1)+','+sy2(pp).toFixed(1);}if(pts2)svg.appendChild(se('polyline',{points:pts2,fill:'none',stroke:sC2[si%5],'stroke-width':2,'stroke-dasharray':'8 5',opacity:0.7}));var qe=Math.sqrt(yM*.6/sr.k);if(qe>0&&qe<xM)svg.appendChild(st(sx(qe)+4,sy2(sr.k*qe*qe)-5,sr.label,sC2[si%5],9,'start','700'));});
 ann.forEach(function(a){var ac=a.color||'#2563eb';
 if(a.type==='op'){
-  // Operating point: filled square
+  // Operating point: filled square only
   svg.appendChild(se('rect',{x:sx(a.x)-5,y:sy2(a.y)-5,width:10,height:10,rx:2,fill:ac,stroke:'#fff','stroke-width':1.5,opacity:0.85}));
-  svg.appendChild(se('rect',{x:sx(a.x)-30,y:sy2(a.y)-34,width:60,height:15,rx:4,fill:ac,opacity:0.15}));
-  svg.appendChild(se('rect',{x:sx(a.x)-30,y:sy2(a.y)-34,width:60,height:15,rx:4,fill:'none',stroke:ac,'stroke-width':1,opacity:0.5}));
-  svg.appendChild(st(sx(a.x),sy2(a.y)-22,a.label,ac,7,null,'800'));
 }else{
   // BEP: circle
   svg.appendChild(se('line',{x1:sx(a.x),y1:sy2(a.y)-18,x2:sx(a.x),y2:sy2(a.y)-6,stroke:ac,'stroke-width':1.5}));
@@ -555,13 +552,25 @@ var allPqAnn=pqBeps.concat(pqOps);
 var c1=h('div',{class:'card'},h('div',{class:'ct'},'PQ \ucee4\ube0c'));
 c1.appendChild(cht({data:ed.map(function(d){return{q:d.q,p:d.pf,_r:d.rpm};}),xk:'q',yk:'p',xl:'Q [CMM]',yl:'P_fan [Pa]',ttl:'Fan Static Pressure vs Airflow',fit:true,sys:S.cfg.sys,ann:allPqAnn}));
 // Toggle + BEP info
-var opts=h('div',{style:'display:flex;align-items:center;gap:16px;margin-top:12px;flex-wrap:wrap'});
+var opts=h('div',{style:'margin-top:12px'});
 opts.appendChild(mkCb('BEP \ud45c\uc2dc',S.pqBep,function(v){S.pqBep=v;R();}));
-if(S.pqBep&&pqBeps.length){
-  pqBeps.forEach(function(b){opts.appendChild(h('div',{style:'padding:5px 10px;border-radius:6px;border:1.5px solid '+b.color+';font-size:10px;display:flex;gap:8px;align-items:center'},h('span',{style:'color:'+b.color+';font-weight:800'},'\u25cb '+b.label),'Q='+b.dx+' CMM, P='+b.dy+' Pa, \u03b7='+b.de+'%'));});
-}
-if(pqOps.length){
-  pqOps.forEach(function(o){opts.appendChild(h('div',{style:'padding:5px 10px;border-radius:6px;background:'+o.color+'15;border:1.5px solid '+o.color+';font-size:10px;display:flex;gap:8px;align-items:center'},h('span',{style:'color:'+o.color+';font-weight:800'},'\u25a0 '+o.label),o.rpm+'RPM Q='+o.dx+' P='+o.dp+'Pa'));});
+if((S.pqBep&&pqBeps.length)||pqOps.length){
+  var infoGrid=h('div',{style:'display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px'});
+  // Left: BEP
+  var leftCol=h('div');
+  if(S.pqBep&&pqBeps.length){
+    leftCol.appendChild(h('div',{style:'font-size:10px;font-weight:800;color:#94a3b8;margin-bottom:6px'},'\u25cb BEP'));
+    pqBeps.forEach(function(b){leftCol.appendChild(h('div',{style:'padding:5px 10px;border-radius:6px;border:1.5px solid '+b.color+';font-size:10px;margin-bottom:4px'},h('span',{style:'color:'+b.color+';font-weight:800'},b.label+' '),h('span',null,'Q='+b.dx+' CMM  P='+b.dy+' Pa  \u03b7='+b.de+'%')));});
+  }
+  infoGrid.appendChild(leftCol);
+  // Right: Operating points
+  var rightCol=h('div');
+  if(pqOps.length){
+    rightCol.appendChild(h('div',{style:'font-size:10px;font-weight:800;color:#94a3b8;margin-bottom:6px'},'\u25a0 \uc6b4\uc804\uc810'));
+    pqOps.forEach(function(o){rightCol.appendChild(h('div',{style:'padding:5px 10px;border-radius:6px;background:'+o.color+'15;border:1.5px solid '+o.color+';font-size:10px;margin-bottom:4px'},h('span',{style:'color:'+o.color+';font-weight:800'},o.rpm+'RPM '),h('span',null,'Q='+o.dx+' CMM  P='+o.dp+' Pa')));});
+  }
+  infoGrid.appendChild(rightCol);
+  opts.appendChild(infoGrid);
 }
 c1.appendChild(opts);
 w.appendChild(c1);
@@ -577,16 +586,22 @@ var opPts=getOpPts(ed,rpms,S.cfg.sys);
 var allAnn=beps.concat(opPts);
 var card=h('div',{class:'card'},h('div',{class:'ct'},'\ud6a8\uc728 \ucee4\ube0c'));
 card.appendChild(cht({data:ed.map(function(d){return{q:d.q,eff:d.eff,_r:d.rpm};}),xk:'q',yk:'eff',xl:'Q [CMM]',yl:'\u03b7_s [%]',ttl:'Static Efficiency',fit:true,ann:allAnn}));
-// BEP info
-var br=h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:12px'});
-beps.forEach(function(b){br.appendChild(h('div',{style:'padding:7px 12px;border-radius:7px;border:2px solid '+b.color+';display:flex;gap:8px;align-items:center;font-size:11px'},h('span',{style:'color:'+b.color+';font-weight:800'},'\u25cb '+b.label),'Q='+b.dx+' CMM, \u03b7='+b.dy+'%'));});
-card.appendChild(br);
-// Operating point info
-if(opPts.length>0){
-  var sCol=['#64748b','#dc2626','#059669','#d97706','#7c3aed'];
-  var opBr=h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:8px'});
-  opPts.forEach(function(o){opBr.appendChild(h('div',{style:'padding:7px 12px;border-radius:7px;background:'+o.color+'15;border:1.5px solid '+o.color+';display:flex;gap:8px;align-items:center;font-size:11px'},h('span',{style:'color:'+o.color+';font-weight:800'},'\u25a0 '+o.label),o.rpm+'RPM Q='+o.dx+' CMM, \u03b7='+o.dy+'%'));});
-  card.appendChild(opBr);
+// Info grid: BEP left, Operating points right
+if(beps.length||opPts.length){
+  var efGrid=h('div',{style:'display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px'});
+  var efLeft=h('div');
+  if(beps.length){
+    efLeft.appendChild(h('div',{style:'font-size:10px;font-weight:800;color:#94a3b8;margin-bottom:6px'},'\u25cb BEP'));
+    beps.forEach(function(b){efLeft.appendChild(h('div',{style:'padding:5px 10px;border-radius:6px;border:1.5px solid '+b.color+';font-size:10px;margin-bottom:4px'},h('span',{style:'color:'+b.color+';font-weight:800'},b.label+' '),h('span',null,'Q='+b.dx+' CMM  \u03b7='+b.dy+'%')));});
+  }
+  efGrid.appendChild(efLeft);
+  var efRight=h('div');
+  if(opPts.length){
+    efRight.appendChild(h('div',{style:'font-size:10px;font-weight:800;color:#94a3b8;margin-bottom:6px'},'\u25a0 \uc6b4\uc804\uc810'));
+    opPts.forEach(function(o){efRight.appendChild(h('div',{style:'padding:5px 10px;border-radius:6px;background:'+o.color+'15;border:1.5px solid '+o.color+';font-size:10px;margin-bottom:4px'},h('span',{style:'color:'+o.color+';font-weight:800'},o.rpm+'RPM '),h('span',null,'Q='+o.dx+' CMM  \u03b7='+o.dy+'%')));});
+  }
+  efGrid.appendChild(efRight);
+  card.appendChild(efGrid);
 }
 // Design guide
 card.appendChild(mkGuide(beps,opPts));
