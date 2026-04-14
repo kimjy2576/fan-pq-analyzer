@@ -180,7 +180,7 @@ var cRow=h('div',{style:'display:flex;gap:12px;flex-wrap:wrap;align-items:center
 rpms.forEach(function(rpm){
   var col=rC(rpm);
   var item=h('div',{style:'display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;border:2px solid '+col+';background:#fff'});
-  item.appendChild(h('span',{style:'font-size:12px;font-weight:700;color:'+col;min:'width:50px'},rpm+' RPM'));
+  item.appendChild(h('span',{style:'font-size:12px;font-weight:700;min-width:50px;color:'+col},rpm+' RPM'));
   var picker=h('input',{type:'color',value:col,style:'width:28px;height:28px;border:none;padding:0;cursor:pointer;border-radius:4px;background:none'});
   picker.addEventListener('input',function(){S.rpmC[rpm]=picker.value;R();});
   item.appendChild(picker);
