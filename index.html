@@ -101,7 +101,7 @@ function rC(rpm){return S.rpmC[rpm]||RC[0];}
 
 var S={tab:'setup',cfg:{mode:'discharge',name:'\uc2dc\ub85c\ucf54\ud32c A-150',duct:false,hx:false,evap:false,cond:false,filt:false,filtSz:'',d1:100,d2:60,cd:0.98,dFan:150,temp:20,atm:101.325,rh:50,sys:[{label:'\uc2dc\uc2a4\ud15c 1',md:'k',k:200,pts:[]}]},
 data:[{rpm:1200,dv:12,pg:45,w:28},{rpm:1200,dv:9.5,pg:68,w:32},{rpm:1200,dv:6.2,pg:95,w:35},{rpm:1200,dv:2.8,pg:125,w:30},{rpm:1200,dv:0.1,pg:148,w:22},{rpm:1600,dv:22,pg:82,w:65},{rpm:1600,dv:17,pg:120,w:75},{rpm:1600,dv:11,pg:168,w:82},{rpm:1600,dv:5,pg:220,w:70},{rpm:1600,dv:0.2,pg:262,w:48},{rpm:2000,dv:35,pg:128,w:125},{rpm:2000,dv:27,pg:188,w:142},{rpm:2000,dv:17,pg:265,w:155},{rpm:2000,dv:8,pg:345,w:130},{rpm:2000,dv:0.3,pg:410,w:85}],
-saved:JSON.parse(localStorage.getItem('fpq')||'[]'),cmpIds:[],refRpm:1600,mMode:'q',mTgt:2,pqBep:true,rpmC:{},cmpBep:true,cmpSys:true,cmpSysIdx:0};
+saved:JSON.parse(localStorage.getItem('fpq')||'[]'),cmpIds:[],refRpm:1600,mMode:'q',mTgt:2,pqBep:true,rpmC:{},cpPqBep:true,cpPqSys:true,cpEfBep:true,cpEfSys:true,cmpSysIdx:0};
 function persist(){try{localStorage.setItem('fpq',JSON.stringify(S.saved));}catch(e){}}
 
 function h(t,a){var el=document.createElement(t);if(a)Object.keys(a).forEach(function(k){var v=a[k];if(v==null||v===false)return;if(k==='style'&&typeof v==='object')Object.assign(el.style,v);else if(k.slice(0,2)==='on')el.addEventListener(k.slice(2).toLowerCase(),v);else el.setAttribute(k,v);});for(var i=2;i<arguments.length;i++){var c=arguments[i];if(c==null||c===false)continue;if(Array.isArray(c))c.forEach(function(x){if(x!=null&&x!==false)el.appendChild(typeof x==='string'?document.createTextNode(x):x);});else el.appendChild(typeof c==='string'||typeof c==='number'?document.createTextNode(''+c):c);}return el;}
@@ -623,7 +623,7 @@ if(sel.length>=2){
   var allPQ=[],annPQ=[];
   sel.forEach(function(sv,si){var ed=enr(sv.data,sv.cfg).filter(function(d){return d.rpm>0&&d.q>0;});
     ed.forEach(function(d){allPQ.push({q:d.q,p:d.pf,_r:sv.cfg.name+'_'+d.rpm});});
-    if(!S.cmpBep)return;
+    if(!S.cpPqBep)return;
     var rr=[],sn2={};ed.forEach(function(d){if(!sn2[d.rpm]){sn2[d.rpm]=1;rr.push(d.rpm);}});rr.sort(function(a,b){return a-b;});
     rr.forEach(function(rpm){var rd=ed.filter(function(d){return d.rpm===rpm;});if(rd.length<3)return;
       var xs=rd.map(function(d){return d.q;}),ye=rd.map(function(d){return d.eff;}),yp=rd.map(function(d){return d.pf;});
@@ -631,10 +631,10 @@ if(sel.length>=2){
       var qb,pb;if(fE.a<0){qb=-fE.b/(2*fE.a);pb=fP.ev(qb);}else{var best=rd.reduce(function(a,b){return b.eff>a.eff?b:a;},rd[0]);qb=best.q;pb=best.pf;}
       annPQ.push({x:qb,y:pb,label:'BEP',color:RC[si%8]});});});
   var pqCard=h('div',{class:'card'},h('div',{class:'ct'},'PQ \ube44\uad50'));
-  pqCard.appendChild(cht({data:allPQ,xk:'q',yk:'p',xl:'Q [CMM]',yl:'Pfan [Pa]',ttl:'Multi-Fan PQ',fit:true,rcm:cm,sys:S.cmpSys?uSys:[],ann:annPQ}));
+  pqCard.appendChild(cht({data:allPQ,xk:'q',yk:'p',xl:'Q [CMM]',yl:'Pfan [Pa]',ttl:'Multi-Fan PQ',fit:true,rcm:cm,sys:S.cpPqSys?uSys:[],ann:annPQ}));
   var pqOpt=h('div',{style:'display:flex;gap:14px;margin-top:10px'});
-  pqOpt.appendChild(mkCb('BEP',S.cmpBep,function(v){S.cmpBep=v;R();}));
-  pqOpt.appendChild(mkCb('\uc800\ud56d\ucee4\ube0c',S.cmpSys,function(v){S.cmpSys=v;R();}));
+  pqOpt.appendChild(mkCb('BEP',S.cpPqBep,function(v){S.cpPqBep=v;R();}));
+  pqOpt.appendChild(mkCb('\uc800\ud56d\ucee4\ube0c',S.cpPqSys,function(v){S.cpPqSys=v;R();}));
   pqCard.appendChild(pqOpt);w.appendChild(pqCard);
 
   // === Efficiency ===
@@ -642,13 +642,13 @@ if(sel.length>=2){
   sel.forEach(function(sv,si){var ed=enr(sv.data,sv.cfg).filter(function(d){return d.rpm>0&&d.q>0;});
     ed.forEach(function(d){allEff.push({q:d.q,eff:d.eff,_r:sv.cfg.name+'_'+d.rpm});});
     var rr=[],sn2={};ed.forEach(function(d){if(!sn2[d.rpm]){sn2[d.rpm]=1;rr.push(d.rpm);}});rr.sort(function(a,b){return a-b;});
-    if(S.cmpBep)getBEPs(ed,rr).forEach(function(b){annEff.push({x:b.x,y:b.y,label:'BEP',color:RC[si%8]});});
-    if(S.cmpSys)getOpPts(ed,rr,uSys).forEach(function(o){annEff.push(o);});});
+    if(S.cpEfBep)getBEPs(ed,rr).forEach(function(b){annEff.push({x:b.x,y:b.y,label:'BEP',color:RC[si%8]});});
+    if(S.cpEfSys)getOpPts(ed,rr,uSys).forEach(function(o){annEff.push(o);});});
   var effCard=h('div',{class:'card'},h('div',{class:'ct'},'\ud6a8\uc728 \ube44\uad50'));
   effCard.appendChild(cht({data:allEff,xk:'q',yk:'eff',xl:'Q [CMM]',yl:'\u03b7_s [%]',ttl:'Multi-Fan Efficiency',fit:true,rcm:cm,ann:annEff}));
   var effOpt=h('div',{style:'display:flex;gap:14px;margin-top:10px'});
-  effOpt.appendChild(mkCb('BEP',S.cmpBep,function(v){S.cmpBep=v;R();}));
-  effOpt.appendChild(mkCb('\uc6b4\uc804\uc810',S.cmpSys,function(v){S.cmpSys=v;R();}));
+  effOpt.appendChild(mkCb('BEP',S.cpEfBep,function(v){S.cpEfBep=v;R();}));
+  effOpt.appendChild(mkCb('\uc6b4\uc804\uc810',S.cpEfSys,function(v){S.cpEfSys=v;R();}));
   effCard.appendChild(effOpt);w.appendChild(effCard);
 
   // === Summary ===
