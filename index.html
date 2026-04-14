@@ -257,6 +257,7 @@ sr.pts.forEach(function(pp,pi){
   ptr.appendChild(delTd);ptb.appendChild(ptr);
 });
 pt.appendChild(ptb);blk.appendChild(pt);
+gridReg(sysId,sysCols,S.cfg.sys[i].pts,function(){S.cfg.sys[i].k=fitK(S.cfg.sys[i].pts);});
 var pb=h('div',{style:'display:flex;align-items:center;gap:8px'});
 pb.appendChild(h('button',{class:'btn by bs',style:'border:1px solid #e2e8f0',onClick:(function(idx){return function(){S.cfg.sys[idx].pts.push({q:0,dp:0});R();};})(i)},'+ \ud3ec\uc778\ud2b8'));
 pb.appendChild(h('button',{class:'btn by bs',style:'border:1px solid #e2e8f0',onClick:(function(idx){return function(){for(var j=0;j<5;j++)S.cfg.sys[idx].pts.push({q:0,dp:0});R();};})(i)},'+ 5\ud589'));
@@ -281,19 +282,51 @@ return h('div',{class:'card'},h('div',{class:'ct'},(isDis?'\ud1a0\ucd9c':'\ud761
 
 // DATA - Grid selection manager
 var _gs={active:null,r1:-1,c1:-1,r2:-1,c2:-1,down:false};
+var _pasting=false;
+function gsHasRange(){return _gs.active&&_gs.r1>=0&&(_gs.r1!==_gs.r2||_gs.c1!==_gs.c2);}
 function gsClear(){_gs.r1=_gs.c1=_gs.r2=_gs.c2=-1;_gs.down=false;if(_gs.active){var cells=document.querySelectorAll('#'+_gs.active+' td.sel');cells.forEach(function(c){c.classList.remove('sel');});}}
 function gsRange(){var r1=Math.min(_gs.r1,_gs.r2),r2=Math.max(_gs.r1,_gs.r2),c1=Math.min(_gs.c1,_gs.c2),c2=Math.max(_gs.c1,_gs.c2);return{r1:r1,c1:c1,r2:r2,c2:c2};}
 function gsMark(){if(!_gs.active)return;var cells=document.querySelectorAll('#'+_gs.active+' td.sel');cells.forEach(function(c){c.classList.remove('sel');});var rng=gsRange();var tds=document.querySelectorAll('#'+_gs.active+' td[data-gr]');tds.forEach(function(td){var r=+td.getAttribute('data-gr'),c=+td.getAttribute('data-gc');if(r>=rng.r1&&r<=rng.r2&&c>=rng.c1&&c<=rng.c2)td.classList.add('sel');});}
+// Lookup which dataArr and cols belong to a table id
+var _gridReg={};
+function gridReg(id,cols,dataArr,afterCb){_gridReg[id]={cols:cols,data:dataArr,cb:afterCb};}
 document.addEventListener('mouseup',function(){_gs.down=false;});
 document.addEventListener('keydown',function(e){
-  if((e.ctrlKey||e.metaKey)&&e.key==='c'&&_gs.active&&_gs.r1>=0){
-    var rng=gsRange(),tid=_gs.active,lines=[];
+  if(!_gs.active||_gs.r1<0)return;
+  var tid=_gs.active,g=_gridReg[tid];if(!g)return;
+  var rng=gsRange();
+  // Ctrl+C: copy selected range
+  if((e.ctrlKey||e.metaKey)&&e.key==='c'&&gsHasRange()){
+    var lines=[];
     for(var r=rng.r1;r<=rng.r2;r++){var row=[];for(var c=rng.c1;c<=rng.c2;c++){var inp=document.querySelector('#'+tid+' input[data-r="'+r+'"][data-c="'+c+'"]');row.push(inp?inp.value:'');}lines.push(row.join('\t'));}
-    var txt=lines.join('\n');
-    if(navigator.clipboard)navigator.clipboard.writeText(txt);
-    e.preventDefault();
+    if(navigator.clipboard)navigator.clipboard.writeText(lines.join('\n'));
+    e.preventDefault();return;
+  }
+  // Delete/Backspace: clear selected range
+  if((e.key==='Delete'||e.key==='Backspace')&&gsHasRange()){
+    for(var r2=rng.r1;r2<=rng.r2;r2++){for(var c2=rng.c1;c2<=rng.c2;c2++){if(c2<g.cols.length)g.data[r2][g.cols[c2]]=0;}}
+    if(g.cb)g.cb();
+    e.preventDefault();R();return;
+  }
+  // Ctrl+V: paste into selected range
+  if((e.ctrlKey||e.metaKey)&&e.key==='v'&&gsHasRange()){
+    navigator.clipboard.readText().then(function(txt){
+      if(!txt)return;
+      var raw=txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n');var lines=raw.split('\n');
+      if(lines.length>1&&lines[lines.length-1].trim()==='')lines.pop();
+      _pasting=true;
+      for(var li=0;li<lines.length;li++){
+        var vs=lines[li].split('\t');var tr3=rng.r1+li;
+        while(tr3>=g.data.length){var obj={};g.cols.forEach(function(k){obj[k]=0;});g.data.push(obj);}
+        for(var vi=0;vi<vs.length;vi++){var tc=rng.c1+vi;if(tc<g.cols.length){var v2=parseFloat(vs[vi].trim().replace(/,/g,''));g.data[tr3][g.cols[tc]]=isNaN(v2)?0:v2;}}
+      }
+      if(g.cb)g.cb();
+      R();setTimeout(function(){_pasting=false;},50);
+    }).catch(function(){});
+    e.preventDefault();return;
   }
 });
+
 function mkGridCell(tableId,ri,ci,val,cols,dataArr,onAfterPaste){
   var td=h('td',{class:'ci','data-gr':''+ri,'data-gc':''+ci});
   var inp=h('input',{type:'number',value:val||'',step:'any','data-r':''+ri,'data-c':''+ci});
@@ -308,9 +341,14 @@ function mkGridCell(tableId,ri,ci,val,cols,dataArr,onAfterPaste){
   inp.addEventListener('focus',function(){
     var rows=document.querySelectorAll('#'+tableId+' tbody tr');
     rows.forEach(function(r){r.classList.remove('selected');});
-    td.parentElement.classList.add('selected');
+    if(td.parentElement)td.parentElement.classList.add('selected');
   });
-  inp.addEventListener('blur',function(){dataArr[ri][cols[ci]]=parseFloat(inp.value)||0;if(onAfterPaste)onAfterPaste();});
+  // Blur: skip during paste to prevent overwriting
+  inp.addEventListener('blur',function(){
+    if(_pasting)return;
+    dataArr[ri][cols[ci]]=parseFloat(inp.value)||0;
+    if(onAfterPaste)onAfterPaste();
+  });
   inp.addEventListener('keydown',function(e){
     var nc,nr;
     if(e.key==='Enter'){e.preventDefault();inp.blur();nr=ri+1;nc=ci;}
@@ -322,7 +360,7 @@ function mkGridCell(tableId,ri,ci,val,cols,dataArr,onAfterPaste){
     else return;
     if(nr!==undefined){var nx=document.querySelector('#'+tableId+' input[data-r="'+nr+'"][data-c="'+nc+'"]');if(nx)setTimeout(function(){nx.focus();nx.select();},10);}
   });
-  // Paste
+  // Paste on individual cell
   inp.addEventListener('paste',function(e){
     var txt=(e.clipboardData||window.clipboardData).getData('text');if(!txt)return;
     var raw=txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n');var lines=raw.split('\n');
@@ -330,13 +368,14 @@ function mkGridCell(tableId,ri,ci,val,cols,dataArr,onAfterPaste){
     var isMulti=lines.length>1||(lines.length===1&&lines[0].split('\t').length>1);
     if(!isMulti)return;
     e.preventDefault();e.stopPropagation();
+    _pasting=true;
     for(var li=0;li<lines.length;li++){
       var vs=lines[li].split('\t');var tr2=ri+li;
       while(tr2>=dataArr.length){var obj={};cols.forEach(function(k){obj[k]=0;});dataArr.push(obj);}
       for(var vi=0;vi<vs.length;vi++){if(ci+vi<cols.length){var v=parseFloat(vs[vi].trim().replace(/,/g,''));dataArr[tr2][cols[ci+vi]]=isNaN(v)?0:v;}}
     }
     if(onAfterPaste)onAfterPaste();
-    R();setTimeout(function(){var nx=document.querySelector('#'+tableId+' input[data-r="'+ri+'"][data-c="'+ci+'"]');if(nx)nx.focus();},30);
+    R();setTimeout(function(){_pasting=false;var nx=document.querySelector('#'+tableId+' input[data-r="'+ri+'"][data-c="'+ci+'"]');if(nx)nx.focus();},30);
   });
   td.appendChild(inp);return td;
 }
@@ -378,6 +417,7 @@ ed.forEach(function(d,ri){
   tbody.appendChild(tr);
 });
 tb.appendChild(tbody);tw.appendChild(tb);card.appendChild(tw);
+gridReg('dg',COLS,S.data);
 // Buttons
 card.appendChild(h('div',{class:'br',style:'margin-top:10px'},
   h('button',{class:'btn ba',onClick:function(){for(var i=0;i<5;i++)S.data.push({rpm:0,dv:0,pg:0,w:0});R();}},'+ 5\ud589 \ucd94\uac00'),
