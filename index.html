@@ -51,6 +51,25 @@ input[type=number]{-moz-appearance:textfield}
 .hint{font-size:11px;color:#475569;margin-bottom:12px;padding:8px 12px;background:#eff6ff;border-radius:7px;border:1px solid #dbeafe;line-height:1.6}
 .cin{width:76px;padding:5px 7px;border:1.5px solid #f1f5f9;border-radius:5px;font-family:Consolas,monospace;font-size:12px;text-align:right;background:0 0;color:#0f172a;outline:0}
 .cin:focus{border-color:#2563eb}
+/* Excel-like grid */
+.xls{width:100%;border-collapse:collapse;font-family:Consolas,monospace;font-size:12px;border:1.5px solid #9ca3af}
+.xls th{padding:6px 8px;background:#f0f0f0;border:1px solid #c0c0c0;color:#333;font-weight:700;font-size:10px;text-align:center;white-space:nowrap;position:sticky;top:0;z-index:1}
+.xls th.col-num{background:#e8e8e8;width:36px;color:#666;font-size:10px}
+.xls th.col-input{background:#dbeafe;color:#1e40af}
+.xls th.col-calc{background:#d1fae5;color:#065f46}
+.xls td{padding:0;border:1px solid #d0d0d0;height:28px}
+.xls td.rn{background:#f5f5f5;text-align:center;font-size:10px;color:#888;width:36px;padding:0 4px}
+.xls td.ci{padding:0}
+.xls td.ci input{width:100%;height:100%;padding:4px 6px;border:none;outline:0;font-family:Consolas,monospace;font-size:12px;text-align:right;background:transparent;box-sizing:border-box}
+.xls td.ci input:focus{background:#eff6ff;outline:2px solid #2563eb;outline-offset:-2px}
+.xls td.cv{padding:4px 8px;text-align:right;color:#059669;font-weight:600;background:#f8fffe}
+.xls td.cv.empty{color:#ccc;font-weight:400}
+.xls td.del{text-align:center;padding:0;width:30px;background:#fefefe}
+.xls tr:hover td{background:#fafafa}
+.xls tr:hover td.ci input{background:#fafafa}
+.xls tr:hover td.ci input:focus{background:#eff6ff}
+.xls tr.selected td{background:#eff6ff}
+.xls .rpm-bar{display:inline-block;width:4px;height:16px;border-radius:2px;margin-right:4px;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -147,25 +166,104 @@ bl.forEach(function(b,i){var x=30+i*(bw+gap),col=cs[b.t]||cs.a;svg.appendChild(s
 return h('div',{class:'card'},h('div',{class:'ct'},(isDis?'\ud1a0\ucd9c':'\ud761\uc785')+' \ubaa8\ub4dc'),svg);}
 
 // DATA
-function rDt(){var c=S.cfg,COLS=['rpm','dv','pg','w'];while(S.data.length<3)S.data.push({rpm:0,dv:0,pg:0,w:0});var ed=enr(S.data,c);
+function rDt(){var c=S.cfg,COLS=['rpm','dv','pg','w'],CLBL=['RPM','\u0394Pv [Pa]','Pg [Pa]','W [W]'],RLBL=['Q [CMM]','Pv [Pa]','Pfan [Pa]','\u03b7 [%]'];
+while(S.data.length<5)S.data.push({rpm:0,dv:0,pg:0,w:0});
+var ed=enr(S.data,c);
 var card=h('div',{class:'card'},h('div',{class:'ct'},'\ub370\uc774\ud130 \uc2dc\ud2b8'));
-card.appendChild(h('div',{class:'hint'},'\ud83d\udca1 \uc5d1\uc140 RPM\xb7\u0394Pv\xb7Pg\xb7W 4\uc5f4 \ubcf5\uc0ac \u2192 \uccab \uc140 Ctrl+V  |  Enter=\u2193 Tab=\u2192'));
-var tw=h('div',{style:'overflow-x:auto'}),tb=h('table',{class:'dt',id:'dg'});
-tb.appendChild(h('thead',null,h('tr',null,['RPM','\u0394Pv','Pg','W','Q[CMM]','Pv','Pfan','\u03b7[%]',''].map(function(t){return h('th',null,t);}))));
+card.appendChild(h('div',{class:'hint'},'\ud83d\udca1 \uc5d1\uc140\uc5d0\uc11c RPM \xb7 \u0394Pv \xb7 Pg \xb7 W  4\uc5f4\uc744 \ubcf5\uc0ac\ud55c \ud6c4, \uc544\ub798 \ud45c\uc758 \uccab \uc140\uc744 \ud074\ub9ad\ud558\uace0 Ctrl+V \ub85c \ubd99\uc5ec\ub123\uae30'));
+var tw=h('div',{style:'overflow-x:auto;max-height:500px;border:1.5px solid #9ca3af;border-radius:4px'});
+var tb=h('table',{class:'xls',id:'dg'});
+// Header
+var thr=h('tr');
+thr.appendChild(h('th',{class:'col-num'},'#'));
+CLBL.forEach(function(l){thr.appendChild(h('th',{class:'col-input'},l));});
+RLBL.forEach(function(l){thr.appendChild(h('th',{class:'col-calc'},l));});
+thr.appendChild(h('th',{style:'width:30px;background:#f0f0f0'},''));
+tb.appendChild(h('thead',null,thr));
 var tbody=h('tbody');
-ed.forEach(function(d,ri){var tr=h('tr');tr.style.borderLeft=d.rpm>0?'4px solid '+rC(d.rpm):'4px solid #e2e8f0';
-COLS.forEach(function(key,ci){var td=h('td');var inp=h('input',{type:'number',value:d[key]||'',step:'any',class:'cin','data-r':''+ri,'data-c':''+ci});
-inp.addEventListener('focus',function(){inp.style.borderColor='#2563eb';inp.select();});
-inp.addEventListener('blur',function(){inp.style.borderColor='#f1f5f9';S.data[ri][key]=parseFloat(inp.value)||0;});
-inp.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();inp.blur();var nr=e.key==='Enter'?ri+1:ci>=3?ri+1:ri,nc=e.key==='Tab'?(ci>=3?0:ci+1):ci;setTimeout(function(){var x=document.querySelector('#dg input[data-r="'+nr+'"][data-c="'+nc+'"]');if(x)x.focus();},20);}});
-inp.addEventListener('paste',function(e){var txt=(e.clipboardData||window.clipboardData).getData('text');if(!txt)return;var lines=txt.split('\n').filter(function(l){return l.trim();});if(lines.length<=1&&lines[0].split('\t').length<=1)return;e.preventDefault();lines.forEach(function(line,li){var vs=line.split('\t').map(function(s){return parseFloat(s.trim().replace(/,/g,''))||0;});var tr2=ri+li;while(tr2>=S.data.length)S.data.push({rpm:0,dv:0,pg:0,w:0});vs.forEach(function(v,vi){if(ci+vi<COLS.length)S.data[tr2][COLS[ci+vi]]=v;});});R();});
-td.appendChild(inp);tr.appendChild(td);});
-var has=d.rpm>0&&(d.dv>0||d.pg>0);
-tr.appendChild(h('td',{class:'cc'},has?d.q.toFixed(2):'\u2014'));tr.appendChild(h('td',{class:'cc'},has?d.pv.toFixed(1):'\u2014'));tr.appendChild(h('td',{class:'cc'},has?d.pf.toFixed(1):'\u2014'));tr.appendChild(h('td',{class:'cc'},has?d.eff.toFixed(1):'\u2014'));
-tr.appendChild(h('td',null,h('button',{style:'border:none;background:none;color:#dc2626;cursor:pointer;font-size:13px',onClick:(function(idx){return function(){S.data.splice(idx,1);R();};})(ri)},'\u2715')));
-tbody.appendChild(tr);});
+ed.forEach(function(d,ri){
+  var tr=h('tr');
+  // Row number with RPM color bar
+  var rnTd=h('td',{class:'rn'});
+  if(d.rpm>0)rnTd.appendChild(h('span',{class:'rpm-bar',style:'background:'+rC(d.rpm)}));
+  rnTd.appendChild(document.createTextNode(''+(ri+1)));
+  tr.appendChild(rnTd);
+  // Editable input cells
+  COLS.forEach(function(key,ci){
+    var td=h('td',{class:'ci'});
+    var inp=h('input',{type:'number',value:d[key]||'',step:'any','data-r':''+ri,'data-c':''+ci});
+    inp.addEventListener('focus',function(){
+      // Highlight row
+      var rows=document.querySelectorAll('#dg tbody tr');
+      rows.forEach(function(r){r.classList.remove('selected');});
+      tr.classList.add('selected');
+    });
+    inp.addEventListener('blur',function(){
+      S.data[ri][key]=parseFloat(inp.value)||0;
+    });
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){e.preventDefault();inp.blur();var nx=document.querySelector('#dg input[data-r="'+(ri+1)+'"][data-c="'+ci+'"]');if(nx)setTimeout(function(){nx.focus();},10);}
+      else if(e.key==='Tab'){e.preventDefault();inp.blur();var nc2=ci+1<4?ci+1:0,nr2=ci+1<4?ri:ri+1;var nx2=document.querySelector('#dg input[data-r="'+nr2+'"][data-c="'+nc2+'"]');if(nx2)setTimeout(function(){nx2.focus();},10);}
+      else if(e.key==='ArrowDown'){e.preventDefault();var nx3=document.querySelector('#dg input[data-r="'+(ri+1)+'"][data-c="'+ci+'"]');if(nx3)nx3.focus();}
+      else if(e.key==='ArrowUp'){e.preventDefault();var nx4=document.querySelector('#dg input[data-r="'+(ri-1)+'"][data-c="'+ci+'"]');if(nx4)nx4.focus();}
+      else if(e.key==='ArrowRight'&&inp.selectionStart===inp.value.length){var nx5=document.querySelector('#dg input[data-r="'+ri+'"][data-c="'+(ci+1)+'"]');if(nx5){e.preventDefault();nx5.focus();}}
+      else if(e.key==='ArrowLeft'&&inp.selectionStart===0){var nx6=document.querySelector('#dg input[data-r="'+ri+'"][data-c="'+(ci-1)+'"]');if(nx6){e.preventDefault();nx6.focus();}}
+      else if(e.key==='Delete'||e.key==='Backspace'){if(inp.value===''||inp.value==='0'){S.data[ri][key]=0;}}
+    });
+    // PASTE handler - fixed first cell issue
+    inp.addEventListener('paste',function(e){
+      var txt=(e.clipboardData||window.clipboardData).getData('text');
+      if(!txt)return;
+      var rawLines=txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+      var lines=rawLines.split('\n');
+      // Remove trailing empty line (Excel always adds one)
+      if(lines.length>1&&lines[lines.length-1].trim()==='')lines.pop();
+      var isMulti=lines.length>1||(lines.length===1&&lines[0].split('\t').length>1);
+      if(!isMulti)return; // single value → let browser handle
+      e.preventDefault();
+      e.stopPropagation();
+      var startR=ri,startC=ci;
+      for(var li=0;li<lines.length;li++){
+        var vals=lines[li].split('\t');
+        var tgtR=startR+li;
+        while(tgtR>=S.data.length)S.data.push({rpm:0,dv:0,pg:0,w:0});
+        for(var vi=0;vi<vals.length;vi++){
+          var tgtC=startC+vi;
+          if(tgtC<COLS.length){
+            var v=parseFloat(vals[vi].trim().replace(/,/g,''));
+            S.data[tgtR][COLS[tgtC]]=isNaN(v)?0:v;
+          }
+        }
+      }
+      // Re-render and restore focus
+      var focR=startR,focC=startC;
+      R();
+      setTimeout(function(){
+        var nx=document.querySelector('#dg input[data-r="'+focR+'"][data-c="'+focC+'"]');
+        if(nx)nx.focus();
+      },30);
+    });
+    td.appendChild(inp);tr.appendChild(td);
+  });
+  // Calculated columns
+  var has=d.rpm>0&&(d.dv>0||d.pg>0);
+  var vals2=[has?d.q.toFixed(2):'\u2014',has?d.pv.toFixed(1):'\u2014',has?d.pf.toFixed(1):'\u2014',has?d.eff.toFixed(1):'\u2014'];
+  vals2.forEach(function(v){tr.appendChild(h('td',{class:'cv'+(v==='\u2014'?' empty':'')},v));});
+  // Delete
+  var delTd=h('td',{class:'del'});
+  delTd.appendChild(h('button',{style:'border:none;background:none;color:#dc2626;cursor:pointer;font-size:12px;line-height:1',onClick:(function(idx){return function(){S.data.splice(idx,1);R();};})(ri)},'\u2715'));
+  tr.appendChild(delTd);
+  tbody.appendChild(tr);
+});
 tb.appendChild(tbody);tw.appendChild(tb);card.appendChild(tw);
-card.appendChild(h('div',{class:'br',style:'margin-top:10px'},h('button',{class:'btn ba',onClick:function(){for(var i=0;i<5;i++)S.data.push({rpm:0,dv:0,pg:0,w:0});R();}},'+ \ud589 \ucd94\uac00'),h('button',{class:'btn by',onClick:function(){S.data=S.data.filter(function(d){return d.rpm>0||d.dv>0||d.pg>0||d.w>0;});if(!S.data.length)S.data.push({rpm:0,dv:0,pg:0,w:0});R();}},'\ud83e\uddf9 \uc815\ub9ac'),h('button',{class:'btn by',onClick:doEC},'CSV')));
+// Buttons
+card.appendChild(h('div',{class:'br',style:'margin-top:10px'},
+  h('button',{class:'btn ba',onClick:function(){for(var i=0;i<5;i++)S.data.push({rpm:0,dv:0,pg:0,w:0});R();}},'+ 5\ud589 \ucd94\uac00'),
+  h('button',{class:'btn by',onClick:function(){for(var i=0;i<20;i++)S.data.push({rpm:0,dv:0,pg:0,w:0});R();}},'+ 20\ud589'),
+  h('button',{class:'btn by',onClick:function(){S.data=S.data.filter(function(d){return d.rpm>0||d.dv>0||d.pg>0||d.w>0;});if(!S.data.length)S.data.push({rpm:0,dv:0,pg:0,w:0});R();}},'\ud83e\uddf9 \ube48 \ud589 \uc815\ub9ac'),
+  h('button',{class:'btn by',onClick:function(){if(confirm('\ubaa8\ub4e0 \ub370\uc774\ud130\ub97c \uc0ad\uc81c\ud558\uc2dc\uaca0\uc2b5\ub2c8\uae4c?')){S.data=[{rpm:0,dv:0,pg:0,w:0}];R();}}},'🗑 \uc804\uccb4 \uc0ad\uc81c'),
+  h('button',{class:'btn by',onClick:doEC},'📋 CSV')
+));
 return card;}
 
 // PQ
