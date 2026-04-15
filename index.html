@@ -125,17 +125,30 @@ o.id=cid;
 if(!S.rh[cid])S.rh[cid]=[];
 var wrap=h('div',{class:'chtw'});
 
-// Detect RPMs
+// Detect RPMs and check if compound (compare mode)
 var rpms=[],seen={};o.data.forEach(function(d){if(!seen[d._r]){seen[d._r]=1;rpms.push(d._r);}});
 rpms.sort(function(a,b){return(''+a).localeCompare(''+b,undefined,{numeric:true});});
+var isCompound=rpms.length>0&&(''+rpms[0]).indexOf('_')>=0;
+
+// Extract toggle keys: RPM suffix for compound, raw RPM for simple
+var toggleKeys=[],tkSeen={};
+if(isCompound){
+  rpms.forEach(function(r){var parts=(''+r).split('_');var rpmPart=parts[parts.length-1];if(!tkSeen[rpmPart]){tkSeen[rpmPart]=1;toggleKeys.push(rpmPart);}});
+}else{
+  rpms.forEach(function(r){if(!tkSeen[r]){tkSeen[r]=1;toggleKeys.push(r);}});
+}
 
 // Filter hidden RPMs
 var hidden=S.rh[cid]||[];
-var fData=o.data.filter(function(d){return hidden.indexOf(d._r)<0;});
+function isRpmHidden(rKey){
+  if(isCompound){var parts=(''+rKey).split('_');var rp=parts[parts.length-1];return hidden.indexOf(rp)>=0||hidden.indexOf(+rp)>=0;}
+  return hidden.indexOf(rKey)>=0||hidden.indexOf(+rKey)>=0;
+}
+var fData=o.data.filter(function(d){return !isRpmHidden(d._r);});
 var fAnn=(o.ann||[]).filter(function(a){
-  if(!a.rpm&&!a.label)return true;
-  var key=a.rpm?a.rpm:a.label?a.label.replace('BEP ',''):'';
-  return hidden.indexOf(key)<0&&hidden.indexOf(+key)<0;
+  if(a.rpm!=null)return hidden.indexOf(''+a.rpm)<0&&hidden.indexOf(+a.rpm)<0;
+  if(a.label){var m=a.label.match(/\d+/);if(m)return hidden.indexOf(m[0])<0&&hidden.indexOf(+m[0])<0;}
+  return true;
 });
 var fo={}; for(var k in o)fo[k]=o[k]; fo.data=fData; fo.ann=fAnn;
 
@@ -164,24 +177,23 @@ bar.appendChild(h('button',{onClick:function(){
 wrap.appendChild(bar);
 
 // RPM toggles
-if(rpms.length>1){
+if(toggleKeys.length>1){
   var tRow=h('div',{style:'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;align-items:center'});
   tRow.appendChild(h('span',{style:'font-size:10px;color:#94a3b8;font-weight:700'},'RPM:'));
-  rpms.forEach(function(rpm){
-    var isHid=hidden.indexOf(rpm)>=0;
-    var col=o.rcm&&o.rcm[rpm]?o.rcm[rpm]:rC(rpm);
+  toggleKeys.forEach(function(tk){
+    var isHid=hidden.indexOf(tk)>=0||hidden.indexOf(+tk)>=0;
+    var col=rC(+tk)||'#475569';
     var tb2=h('div',{style:'display:flex;align-items:center;gap:3px;padding:3px 8px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:600;border:1.5px solid '+(isHid?'#e2e8f0':col)+';color:'+(isHid?'#ccc':col)+';background:'+(isHid?'#f8f8f8':'#fff')+';opacity:'+(isHid?'0.5':'1'),
       onClick:(function(r){return function(){
         var h2=S.rh[cid]||[];var idx=h2.indexOf(r);
         if(idx>=0)h2.splice(idx,1);else h2.push(r);
         S.rh[cid]=h2;R();
-      };})(rpm)
+      };})(tk)
     });
     tb2.appendChild(h('div',{style:'width:10px;height:10px;border-radius:2px;background:'+(isHid?'#ddd':col)}));
-    tb2.appendChild(document.createTextNode(''+rpm));
+    tb2.appendChild(document.createTextNode(tk));
     tRow.appendChild(tb2);
   });
-  // All / None
   tRow.appendChild(h('button',{style:'border:none;background:none;font-size:10px;color:#94a3b8;cursor:pointer;text-decoration:underline',onClick:function(){S.rh[cid]=[];R();}},'\uc804\uccb4'));
   wrap.appendChild(tRow);
 }
@@ -196,12 +208,18 @@ return wrap;
 }
 
 function reChart(cid,o,wrap){
+  var rpms2=[],seen2={};o.data.forEach(function(d){if(!seen2[d._r]){seen2[d._r]=1;rpms2.push(d._r);}});
+  var isComp=rpms2.length>0&&(''+rpms2[0]).indexOf('_')>=0;
   var hidden=S.rh[cid]||[];
-  var fData=o.data.filter(function(d){return hidden.indexOf(d._r)<0;});
+  function isHid(rKey){
+    if(isComp){var parts=(''+rKey).split('_');var rp=parts[parts.length-1];return hidden.indexOf(rp)>=0||hidden.indexOf(+rp)>=0;}
+    return hidden.indexOf(rKey)>=0||hidden.indexOf(+rKey)>=0;
+  }
+  var fData=o.data.filter(function(d){return !isHid(d._r);});
   var fAnn=(o.ann||[]).filter(function(a){
-    if(!a.rpm&&!a.label)return true;
-    var key=a.rpm?a.rpm:a.label?a.label.replace('BEP ',''):'';
-    return hidden.indexOf(key)<0&&hidden.indexOf(+key)<0;
+    if(a.rpm!=null)return hidden.indexOf(''+a.rpm)<0&&hidden.indexOf(+a.rpm)<0;
+    if(a.label){var m=a.label.match(/\d+/);if(m)return hidden.indexOf(m[0])<0&&hidden.indexOf(+m[0])<0;}
+    return true;
   });
   var fo={};for(var k in o)fo[k]=o[k];fo.data=fData;fo.ann=fAnn;
   var sb=wrap._svgBox;sb.innerHTML='';sb.appendChild(mkSvg(fo));
@@ -866,7 +884,7 @@ if(sel.length>=2){
       var xs=rd.map(function(d){return d.q;}),ye=rd.map(function(d){return d.eff;}),yp=rd.map(function(d){return d.pf;});
       var fE=pFit(xs,ye),fP=pFit(xs,yp);if(!fE||!fP)return;
       var qb,pb;if(fE.a<0){qb=-fE.b/(2*fE.a);pb=fP.ev(qb);}else{var best=rd.reduce(function(a,b){return b.eff>a.eff?b:a;},rd[0]);qb=best.q;pb=best.pf;}
-      annPQ.push({x:qb,y:pb,label:'BEP',color:RC[si%8]});});});
+      annPQ.push({x:qb,y:pb,label:'BEP',color:RC[si%8],rpm:rpm});});});
   var pqCard=h('div',{class:'card'},h('div',{class:'ct'},'PQ \ube44\uad50'));
   pqCard.appendChild(cht({id:'cpq',data:allPQ,xk:'q',yk:'p',xl:'Q [CMM]',yl:'Pfan [Pa]',ttl:'Multi-Fan PQ',fit:true,rcm:cm,sys:S.cpPqSys?uSys:[],ann:annPQ}));
   var pqOpt=h('div',{style:'display:flex;gap:14px;margin-top:10px'});
@@ -879,7 +897,7 @@ if(sel.length>=2){
   sel.forEach(function(sv,si){var ed=enr(sv.data,sv.cfg).filter(function(d){return d.rpm>0&&d.q>0;});
     ed.forEach(function(d){allEff.push({q:d.q,eff:d.eff,_r:sv.cfg.name+'_'+d.rpm});});
     var rr=[],sn2={};ed.forEach(function(d){if(!sn2[d.rpm]){sn2[d.rpm]=1;rr.push(d.rpm);}});rr.sort(function(a,b){return a-b;});
-    if(S.cpEfBep)getBEPs(ed,rr).forEach(function(b){annEff.push({x:b.x,y:b.y,label:'BEP',color:RC[si%8]});});
+    if(S.cpEfBep)getBEPs(ed,rr).forEach(function(b){annEff.push({x:b.x,y:b.y,label:'BEP',color:RC[si%8],rpm:parseInt(b.label.replace('BEP ',''))});});
     if(S.cpEfSys)getOpPts(ed,rr,uSys).forEach(function(o){annEff.push(o);});});
   var effCard=h('div',{class:'card'},h('div',{class:'ct'},'\ud6a8\uc728 \ube44\uad50'));
   effCard.appendChild(cht({id:'cef',data:allEff,xk:'q',yk:'eff',xl:'Q [CMM]',yl:'\u03b7_s [%]',ttl:'Multi-Fan Efficiency',fit:true,rcm:cm,ann:annEff}));
