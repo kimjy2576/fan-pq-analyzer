@@ -110,7 +110,7 @@ function rC(rpm){return S.rpmC[rpm]||RC[0];}
 
 var S={tab:'setup',cfg:{mode:'discharge',name:'\uc2dc\ub85c\ucf54\ud32c A-150',duct:false,hx:false,evap:false,cond:false,filt:false,filtSz:'',d1:100,d2:60,cd:0.98,dFan:150,temp:20,atm:101.325,rh:50,sys:[{label:'\uc2dc\uc2a4\ud15c 1',md:'k',k:200,pts:[]}]},
 data:[{rpm:1200,dv:12,pg:45,w:28},{rpm:1200,dv:9.5,pg:68,w:32},{rpm:1200,dv:6.2,pg:95,w:35},{rpm:1200,dv:2.8,pg:125,w:30},{rpm:1200,dv:0.1,pg:148,w:22},{rpm:1600,dv:22,pg:82,w:65},{rpm:1600,dv:17,pg:120,w:75},{rpm:1600,dv:11,pg:168,w:82},{rpm:1600,dv:5,pg:220,w:70},{rpm:1600,dv:0.2,pg:262,w:48},{rpm:2000,dv:35,pg:128,w:125},{rpm:2000,dv:27,pg:188,w:142},{rpm:2000,dv:17,pg:265,w:155},{rpm:2000,dv:8,pg:345,w:130},{rpm:2000,dv:0.3,pg:410,w:85}],
-saved:JSON.parse(localStorage.getItem('fpq')||'[]'),cmpIds:[],refRpm:1600,mMode:'q',mTgt:2,pqBep:true,rpmC:{},cpPqBep:true,cpPqSys:true,cpEfBep:true,cpEfSys:true,cmpSysIdx:0,zm:{}};
+saved:JSON.parse(localStorage.getItem('fpq')||'[]'),cmpIds:[],refRpm:1600,mMode:'q',mTgt:2,pqBep:true,rpmC:{},cpPqBep:true,cpPqSys:true,cpEfBep:true,cpEfSys:true,cmpSysIdx:0,zm:{},csvSel:[]};
 function persist(){try{localStorage.setItem('fpq',JSON.stringify(S.saved));}catch(e){}}
 
 function h(t,a){var el=document.createElement(t);if(a)Object.keys(a).forEach(function(k){var v=a[k];if(v==null||v===false)return;if(k==='style'&&typeof v==='object')Object.assign(el.style,v);else if(k.slice(0,2)==='on')el.addEventListener(k.slice(2).toLowerCase(),v);else el.setAttribute(k,v);});for(var i=2;i<arguments.length;i++){var c=arguments[i];if(c==null||c===false)continue;if(Array.isArray(c))c.forEach(function(x){if(x!=null&&x!==false)el.appendChild(typeof x==='string'?document.createTextNode(x):x);});else el.appendChild(typeof c==='string'||typeof c==='number'?document.createTextNode(''+c):c);}return el;}
@@ -350,8 +350,27 @@ rpms.forEach(function(rpm){
 });
 cRow.appendChild(h('button',{class:'btn by bs',style:'border:1px solid #e2e8f0',onClick:function(){S.rpmC={};R();}},'\ud83c\udfa8 \ucd08\uae30\ud654'));
 cc.appendChild(cRow);g.appendChild(cc);}
-var c5=h('div',{class:'card sp2'},h('div',{class:'ct'},'A4. \uc138\uc774\ube0c'));c5.appendChild(h('div',{class:'br'},h('button',{class:'btn ba',onClick:doSv},'\ud83d\udcbe \uc800\uc7a5'),h('button',{class:'btn bg',onClick:doEJ},'\ud83d\udce4 JSON'),h('button',{class:'btn bp',onClick:doIJ},'\ud83d\udce5 JSON \uac00\uc838\uc624\uae30'),h('button',{class:'btn by',onClick:doEC},'\ud83d\udccb CSV')));if(S.saved.length){c5.appendChild(h('div',{style:'margin-top:14px;font-size:10px;font-weight:800;color:#94a3b8;letter-spacing:1px'},'\uc800\uc7a5\ub41c \ub370\uc774\ud130'));S.saved.forEach(function(sv,i){
+var c5=h('div',{class:'card sp2'},h('div',{class:'ct'},'A4. \uc138\uc774\ube0c'));c5.appendChild(h('div',{class:'br'},h('button',{class:'btn ba',onClick:doSv},'\ud83d\udcbe \uc800\uc7a5'),h('button',{class:'btn bg',onClick:doEJ},'\ud83d\udce4 JSON'),h('button',{class:'btn bp',onClick:doIJ},'\ud83d\udce5 JSON \uac00\uc838\uc624\uae30'),h('button',{class:'btn by',onClick:doEC},'\ud83d\udccb CSV')));if(S.saved.length){
+  c5.appendChild(h('div',{style:'margin-top:14px;display:flex;align-items:center;justify-content:space-between'}),h('div',{style:'font-size:10px;font-weight:800;color:#94a3b8;letter-spacing:1px;margin-top:14px'},'\uc800\uc7a5\ub41c \ub370\uc774\ud130'));
+  // Batch CSV export bar
+  var csvBar=h('div',{style:'display:flex;gap:6px;align-items:center;margin:8px 0;flex-wrap:wrap'});
+  csvBar.appendChild(mkCb('\uc804\uccb4',S.csvSel.length===S.saved.length,function(){
+    if(S.csvSel.length===S.saved.length)S.csvSel=[];
+    else S.csvSel=S.saved.map(function(sv){return sv.id;});R();
+  }));
+  if(S.csvSel.length>0){
+    csvBar.appendChild(h('span',{style:'font-size:11px;color:#2563eb;font-weight:600'},S.csvSel.length+'\uac1c \uc120\ud0dd'));
+    csvBar.appendChild(h('button',{class:'btn ba bs',onClick:function(){doBatchCSV();}},'\ud83d\udce5 \uc120\ud0dd CSV \ub0b4\ubcf4\ub0b4\uae30'));
+  }
+  c5.appendChild(csvBar);
+  S.saved.forEach(function(sv,i){
+  var isSel=S.csvSel.indexOf(sv.id)>=0;
   var row=h('div',{class:'si',style:'border-left:4px solid #2563eb'});
+  // CSV checkbox
+  row.appendChild(h('div',{style:'margin-right:4px'},mkCb('',isSel,function(){
+    if(isSel)S.csvSel=S.csvSel.filter(function(x){return x!==sv.id;});
+    else S.csvSel.push(sv.id);R();
+  })));
   row.appendChild(h('div',{style:'flex:1'},h('div',{style:'font-weight:700;font-size:12px'},sv.cfg.name),h('div',{style:'font-size:10px;color:#94a3b8;margin-top:2px'},sv.date+' \xb7 '+sv.tag)));
   // Reorder buttons
   var arrows=h('div',{style:'display:flex;flex-direction:column;gap:1px;margin-right:4px'});
@@ -398,6 +417,28 @@ function doSv(){S.saved.push({cfg:JSON.parse(JSON.stringify(S.cfg)),data:JSON.pa
 function doEJ(){var b=new Blob([JSON.stringify({cfg:S.cfg,data:S.data,tag:tag()},null,2)],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=S.cfg.name+'_'+tag()+'.json';a.click();}
 function doIJ(){var inp=document.createElement('input');inp.type='file';inp.accept='.json';inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(ev){try{var d=JSON.parse(ev.target.result);if(d.cfg)Object.assign(S.cfg,d.cfg);if(d.data)S.data=d.data;S.saved.push({cfg:JSON.parse(JSON.stringify(S.cfg)),data:JSON.parse(JSON.stringify(S.data)),tag:d.tag||tag(),date:new Date().toISOString().slice(0,10),id:Date.now()});persist();R();}catch(er){alert('JSON error');}};r.readAsText(f);};inp.click();}
 function doEC(){var c=S.cfg,r2=gRho(c.atm,c.temp),rows=[['RPM','dPv','Pg','W','Q_CMM','Pv','Pfan','eta']];S.data.forEach(function(d){if(!d.rpm)return;var q=calcQ(d.dv,c.d1,c.d2,c.cd,r2),pv=calcPv(q,c.d1,r2),pf=calcPf(d.pg,q,c.d1,r2),e=calcEff(q,pf,d.w);rows.push([d.rpm,d.dv,d.pg,d.w,q.toFixed(2),pv.toFixed(1),pf.toFixed(1),e.toFixed(1)]);});var csv=rows.map(function(r){return r.join(',');}).join('\n');var b=new Blob(['\uFEFF'+csv],{type:'text/csv'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=c.name+'.csv';a.click();}
+function mkSvCsv(sv){
+  var c=sv.cfg,r2=gRho(c.atm,c.temp);
+  var rows=[['Fan','Condition','RPM','dPv_Pa','Pg_Pa','W_W','Q_CMM','Pv_Pa','Pfan_Pa','eta_pct']];
+  sv.data.forEach(function(d){
+    if(!d.rpm)return;
+    var q=calcQ(d.dv,c.d1,c.d2,c.cd,r2),pv=calcPv(q,c.d1,r2),pf=calcPf(d.pg,q,c.d1,r2),e=calcEff(q,pf,d.w);
+    rows.push([c.name,sv.tag,d.rpm,d.dv,d.pg,d.w,q.toFixed(2),pv.toFixed(1),pf.toFixed(1),e.toFixed(1)]);
+  });
+  return rows.map(function(r){return r.join(',');}).join('\n');
+}
+function doBatchCSV(){
+  var sel=S.saved.filter(function(sv){return S.csvSel.indexOf(sv.id)>=0;});
+  if(!sel.length)return;
+  sel.forEach(function(sv,i){
+    setTimeout(function(){
+      var csv='\uFEFF'+mkSvCsv(sv);
+      var b=new Blob([csv],{type:'text/csv'});
+      var a=document.createElement('a');a.href=URL.createObjectURL(b);
+      a.download=sv.cfg.name+'_'+sv.tag+'_'+sv.date+'.csv';a.click();
+    },i*300);
+  });
+}
 
 // DIAGRAM
 function rDg(){var c=S.cfg,isDis=c.mode==='discharge',bl=[];
