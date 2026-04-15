@@ -197,7 +197,8 @@ var data=o.data,xk=o.xk,yk=o.yk,xl=o.xl,yl=o.yl,ttl=o.ttl,W=o.W||620,H=o.H||380,
 var rpms=[],seen={};data.forEach(function(d){if(!seen[d._r]){seen[d._r]=1;rpms.push(d._r);}});rpms.sort(function(a,b){return(''+a).localeCompare(''+b,undefined,{numeric:true});});
 var maxLbl=0;rpms.forEach(function(r){var l=(''+r).length;if(l>maxLbl)maxLbl=l;});
 var legW=rpms.length>0?maxLbl*7+38:0;
-var p={t:42,r:legW+12,b:50,l:65},cw=W-p.l-p.r,ch=H-p.t-p.b;
+var p={t:42,r:20,b:50,l:65},cw=W-p.l-p.r,ch=H-p.t-p.b;
+var totalW=W+legW;
 // Axis bounds: use zoom state or auto
 var zm=S.zm[cid]||{};
 var ab=autoBounds(o);
@@ -207,7 +208,7 @@ if(xMax<=xMin)xMax=xMin+1;if(yMax<=yMin)yMax=yMin+1;
 var sx=function(v){return p.l+(v-xMin)/(xMax-xMin)*cw;},sy2=function(v){return p.t+ch-(v-yMin)/(yMax-yMin)*ch;};
 var ix=function(px){return xMin+(px-p.l)/cw*(xMax-xMin);},iy=function(py){return yMin+(p.t+ch-py)/ch*(yMax-yMin);};
 var ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');
-svg.setAttribute('viewBox','0 0 '+W+' '+H);svg.style.cssText='width:100%;max-width:'+W+'px;font-family:'+MF+';cursor:crosshair;user-select:none';
+svg.setAttribute('viewBox','0 0 '+totalW+' '+H);svg.style.cssText='width:100%;font-family:'+MF+';cursor:crosshair;user-select:none';
 function se(tag,at){var e=document.createElementNS(ns,tag);if(at)Object.keys(at).forEach(function(k){e.setAttribute(k,''+at[k]);});return e;}
 function st(x,y,txt,f,s,a,w){var t=se('text',{x:x,y:y,fill:f||'#94a3b8','font-size':s||10,'text-anchor':a||'middle','font-weight':w||'500'});t.textContent=txt;return t;}
 // Clip path for chart area
@@ -238,14 +239,14 @@ var zr=se('rect',{class:'zoomrect',x:0,y:0,width:0,height:0,visibility:'hidden'}
 var drag={on:false,x0:0,y0:0};
 svg.addEventListener('mousedown',function(e){
   if(e.button!==0)return;var r=svg.getBoundingClientRect();
-  var px=(e.clientX-r.left)/(r.width)*W,py=(e.clientY-r.top)/(r.height)*H;
+  var px=(e.clientX-r.left)/(r.width)*totalW,py=(e.clientY-r.top)/(r.height)*H;
   if(px<p.l||px>p.l+cw||py<p.t||py>p.t+ch)return;
   drag={on:true,x0:px,y0:py};zr.setAttribute('x',px);zr.setAttribute('y',py);zr.setAttribute('width',0);zr.setAttribute('height',0);zr.setAttribute('visibility','visible');
   e.preventDefault();
 });
 svg.addEventListener('mousemove',function(e){
   if(!drag.on)return;var r=svg.getBoundingClientRect();
-  var px=Math.max(p.l,Math.min(p.l+cw,(e.clientX-r.left)/(r.width)*W));
+  var px=Math.max(p.l,Math.min(p.l+cw,(e.clientX-r.left)/(r.width)*totalW));
   var py=Math.max(p.t,Math.min(p.t+ch,(e.clientY-r.top)/(r.height)*H));
   var x1=Math.min(drag.x0,px),y1=Math.min(drag.y0,py);
   zr.setAttribute('x',x1);zr.setAttribute('y',y1);zr.setAttribute('width',Math.abs(px-drag.x0));zr.setAttribute('height',Math.abs(py-drag.y0));
@@ -253,7 +254,7 @@ svg.addEventListener('mousemove',function(e){
 svg.addEventListener('mouseup',function(e){
   if(!drag.on)return;drag.on=false;zr.setAttribute('visibility','hidden');
   var r=svg.getBoundingClientRect();
-  var px=(e.clientX-r.left)/(r.width)*W,py=(e.clientY-r.top)/(r.height)*H;
+  var px=(e.clientX-r.left)/(r.width)*totalW,py=(e.clientY-r.top)/(r.height)*H;
   px=Math.max(p.l,Math.min(p.l+cw,px));py=Math.max(p.t,Math.min(p.t+ch,py));
   var w2=Math.abs(px-drag.x0),h2=Math.abs(py-drag.y0);
   if(w2<8||h2<8)return; // too small, ignore
