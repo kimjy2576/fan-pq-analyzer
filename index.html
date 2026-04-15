@@ -187,7 +187,7 @@ function getOpPts(ed,rpms,sysCurves){
 function R(){syncColors();var app=document.getElementById('app');app.innerHTML='';try{app.appendChild(rH());app.appendChild(rT());var c=h('div',{class:'cnt'});var fn={setup:rS,diagram:rDg,data:rDt,pq:rPQ,eff:rEf,affinity:rAf,dimless:rDm,compare:rCp};if(fn[S.tab])c.appendChild(fn[S.tab]());app.appendChild(c);}catch(e){app.appendChild(h('div',{style:'padding:40px;color:red;font-family:monospace'},'Error: '+e.message+'\n'+e.stack));}}
 function setTab(t){S.tab=t;R();}function sC(k,v){S.cfg[k]=v;R();}
 
-var APP_VERSION='1.1';
+var APP_INFO='2025.04.15 | \uc138\ud0c1\uae30\ucc28\uc138\ub300\ud50c\ub7ab\ud3fcTask, \uae40\uc9c4\uc601 \uc120\uc784';
 var UPDATE_URL='https://raw.githubusercontent.com/kimjy2576/fan-pq-analyzer/main/index.html';
 function doUpdate(){
   var btn=document.getElementById('upd-btn');
@@ -206,7 +206,7 @@ function rH(){var c=S.cfg,bd=h('div',{class:'badges'});bd.appendChild(h('span',{
 var right=h('div',{style:'display:flex;align-items:center;gap:8px'});
 right.appendChild(bd);
 right.appendChild(h('button',{id:'upd-btn',class:'btn by bs',style:'border:1px solid #e2e8f0;white-space:nowrap',onClick:doUpdate},'\ud83d\udd04 \uc5c5\ub370\uc774\ud2b8'));
-return h('div',{class:'hdr'},h('div',{style:'display:flex;align-items:baseline;gap:6px'},h('h1',null,h('b',null,'FAN'),' PQ Analyzer'),h('span',{class:'v'},'v'+APP_VERSION)),right);}
+return h('div',{class:'hdr'},h('div',{style:'display:flex;align-items:baseline;gap:6px'},h('h1',null,h('b',null,'FAN'),' PQ Analyzer'),h('span',{class:'v'},APP_INFO)),right);}
 function rT(){var ts=[['setup','\u2699 \uc124\uc815'],['diagram','\u25eb \ub3c4\uba74'],['data','\u25a6 \ub370\uc774\ud130'],['pq','\ud83d\udcc8 PQ'],['eff','\u26a1 \ud6a8\uc728'],['affinity','\ud83d\udd04 \uc0c1\uc0ac'],['dimless','\u03a8 \ubb34\ucc28\uc6d0'],['compare','\u2696 \ube44\uad50']];return h('div',{class:'tabs'},ts.map(function(t){return h('button',{class:'tab'+(S.tab===t[0]?' on':''),onClick:function(){setTab(t[0]);}},t[1]);}));}
 
 // SETUP
