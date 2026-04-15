@@ -188,11 +188,11 @@ function R(){syncColors();var app=document.getElementById('app');app.innerHTML='
 function setTab(t){S.tab=t;R();}function sC(k,v){S.cfg[k]=v;R();}
 
 var APP_INFO='2025.04.15 | \uc138\ud0c1\uae30\ucc28\uc138\ub300\ud50c\ub7ab\ud3fcTask, \uae40\uc9c4\uc601 \uc120\uc784';
-var UPDATE_URL='https://raw.githubusercontent.com/kimjy2576/fan-pq-analyzer/main/index.html';
+var UPDATE_URL='https://raw.githubusercontent.com/kimjy2576/fan-pq-analyzer/main/index.html?t='+Date.now();
 function doUpdate(){
   var btn=document.getElementById('upd-btn');
   if(btn)btn.textContent='\u2b07 \ub2e4\uc6b4\ub85c\ub4dc \uc911...';
-  fetch(UPDATE_URL).then(function(r){return r.text();}).then(function(txt){
+  fetch(UPDATE_URL,{cache:'no-store'}).then(function(r){return r.text();}).then(function(txt){
     var blob=new Blob([txt],{type:'text/html'});
     var a=document.createElement('a');a.href=URL.createObjectURL(blob);
     a.download='fan-pq-analyzer.html';a.click();
