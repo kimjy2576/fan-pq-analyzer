@@ -920,10 +920,10 @@ if(sel.length>=2){
     [sv.cfg.name,sv.tag,bb.dx+' CMM',bb.dy+'%',pB+' Pa',mq.toFixed(1)+' CMM',mp.toFixed(0)+' Pa'].forEach(function(v,j){var td=h('td',null,v);if(j===0)td.style.cssText='color:'+RC[i%8]+';font-weight:700;text-align:left';tr.appendChild(td);});tbd.appendChild(tr);});
   tb.appendChild(tbd);c3.appendChild(h('div',{style:'overflow-x:auto'},tb));w.appendChild(c3);
 
-  // === RPM Matching on System Resistance Curve ===
+
+  // === RPM Matching on System Resistance Curve (Multi-RPM Interpolation) ===
   var c4=h('div',{class:'card'},h('div',{class:'ct'},'\uc2dc\uc2a4\ud15c \uc800\ud56d \ucee4\ube0c \uc0c1 RPM \ub9e4\uce6d'));
-  c4.appendChild(h('div',{style:'font-size:11px;color:#475569;margin-bottom:12px;line-height:1.6'},'\uc2dc\uc2a4\ud15c \uc800\ud56d \ucee4\ube0c \uc704\uc758 \uc6b4\uc804\uc810\uc744 \uae30\uc900\uc73c\ub85c, \ub3d9\uc77c Q \ub610\ub294 \ub3d9\uc77c W\ub97c \ub2ec\uc131\ud558\uae30 \uc704\ud55c RPM\uc744 \uc0c1\uc0ac\ubc95\uce59\uc73c\ub85c \uc5ed\uc0b0'));
-  // System curve selector + mode + target
+  c4.appendChild(h('div',{style:'font-size:11px;color:#475569;margin-bottom:12px;line-height:1.6'},'\uac01 RPM\uc758 \uc2dc\uc2a4\ud15c \uc800\ud56d \ucee4\ube0c \uc6b4\uc804\uc810\uc744 \ubcf4\uac04\ud558\uc5ec \ubaa9\ud45c Q \ub610\ub294 W\uc5d0 \ud574\ub2f9\ud558\ub294 RPM\uc744 \uc5ed\uc0b0'));
   var mRow=h('div',{style:'display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:14px'});
   if(uSys.length>1){
     var sySel=h('div',{style:'display:flex;flex-direction:column;gap:4px'});
@@ -936,44 +936,59 @@ if(sel.length>=2){
   tgtIn.addEventListener('blur',function(){S.mTgt=parseFloat(tgtIn.value)||0;R();});tgtIn.addEventListener('keydown',function(e){if(e.key==='Enter')tgtIn.blur();});
   mRow.appendChild(h('div',{style:'display:flex;flex-direction:column;gap:4px'},h('label',{style:'font-size:10px;color:#475569;font-weight:700'},S.mMode==='q'?'\ubaa9\ud45c Q':'\ubaa9\ud45c W'),h('div',{style:'display:flex;align-items:center;gap:5px'},tgtIn,h('span',{style:'font-size:10px;color:#94a3b8'},S.mMode==='q'?'CMM':'W'))));
   c4.appendChild(mRow);
-  // Use selected system resistance curve
   var selSys=uSys[S.cmpSysIdx]||uSys[0];
   if(!selSys||!selSys.k||selSys.k<=0){
     c4.appendChild(h('div',{style:'color:#94a3b8;font-size:12px;padding:10px 0'},'\uc2dc\uc2a4\ud15c \uc800\ud56d \ucee4\ube0c\ub97c A5\uc5d0\uc11c \uc124\uc815\ud558\uc138\uc694.'));
   }else{
-    var mt=h('table',{class:'dt'});
-    var mH=S.mMode==='q'?['\ud32c','\uae30\uc900RPM','OP Q','OP P','OP W','OP \u03b7','\u2192RPM','\u2192P','\u2192W','\u2192\u03b7']:['\ud32c','\uae30\uc900RPM','OP Q','OP P','OP W','OP \u03b7','\u2192RPM','\u2192Q','\u2192P','\u2192\u03b7'];
-    mt.appendChild(h('thead',null,h('tr',null,mH.map(function(t){return h('th',null,t);}))));var mtb=h('tbody');
+    function lerp(xs,ys,xt){
+      if(xs.length<2)return null;
+      if(xt<=xs[0])return ys[0]+(ys[1]-ys[0])/(xs[1]-xs[0])*(xt-xs[0]);
+      if(xt>=xs[xs.length-1]){var n2=xs.length;return ys[n2-2]+(ys[n2-1]-ys[n2-2])/(xs[n2-1]-xs[n2-2])*(xt-xs[n2-2]);}
+      for(var i=0;i<xs.length-1;i++){if(xt>=xs[i]&&xt<=xs[i+1]){var t=(xt-xs[i])/(xs[i+1]-xs[i]);return ys[i]+t*(ys[i+1]-ys[i]);}}
+      return ys[ys.length-1];
+    }
     sel.forEach(function(sv,si){
       var ed=enr(sv.data,sv.cfg).filter(function(d){return d.rpm>0&&d.q>0;});
       var rr=[],sn2={};ed.forEach(function(d){if(!sn2[d.rpm]){sn2[d.rpm]=1;rr.push(d.rpm);}});rr.sort(function(a,b){return a-b;});
-      var ref=rr[rr.length-1],refD=ed.filter(function(d){return d.rpm===ref;});if(refD.length<3)return;
-      var xs=refD.map(function(d){return d.q;}),fP=pFit(xs,refD.map(function(d){return d.pf;})),fE=pFit(xs,refD.map(function(d){return d.eff;})),fW=pFit(xs,refD.map(function(d){return d.w;}));
-      if(!fP)return;
-      // Find operating point: PQ curve x system resistance
-      var A=fP.a-selSys.k,B=fP.b,C=fP.c;if(Math.abs(A)<1e-12)return;
-      var disc=B*B-4*A*C;if(disc<0)return;
-      var q1=(-B+Math.sqrt(disc))/(2*A),q2=(-B-Math.sqrt(disc))/(2*A);
-      var mn=Math.min.apply(null,xs),mx=Math.max.apply(null,xs),qOp=null;
-      [q1,q2].forEach(function(q){if(q>0&&q>=mn*0.5&&q<=mx*1.5&&(qOp===null||q>qOp))qOp=q;});
-      if(qOp===null)return;
-      var pOp=selSys.k*qOp*qOp;
-      var wOp=fW?fW.ev(qOp):0;
-      var eOp=fE?fE.ev(qOp):0;
-      // Affinity law from operating point
-      var tgt=S.mTgt,rat,nR,nQ,nP,nW,nE;
-      if(S.mMode==='q'){rat=tgt/qOp;nR=ref*rat;nQ=tgt;nP=selSys.k*tgt*tgt;nW=wOp*rat*rat*rat;nE=eOp;}
-      else{rat=Math.pow(tgt/(wOp||1),1/3);nR=ref*rat;nQ=qOp*rat;nP=selSys.k*nQ*nQ;nW=tgt;nE=eOp;}
-      var tr=h('tr');tr.style.borderLeft='4px solid '+RC[si%8];
-      var vs=S.mMode==='q'
-        ?[sv.cfg.name,ref,qOp.toFixed(2),pOp.toFixed(0),wOp.toFixed(0),eOp.toFixed(1)+'%',nR.toFixed(0),nP.toFixed(1),nW.toFixed(1),nE.toFixed(1)+'%']
-        :[sv.cfg.name,ref,qOp.toFixed(2),pOp.toFixed(0),wOp.toFixed(0),eOp.toFixed(1)+'%',nR.toFixed(0),nQ.toFixed(2),nP.toFixed(1),nE.toFixed(1)+'%'];
-      vs.forEach(function(v,j){var td=h('td',null,''+v);if(j===0)td.style.cssText='color:'+RC[si%8]+';font-weight:700;text-align:left';if(j>=6)td.style.cssText+='color:#2563eb;font-weight:700;';tr.appendChild(td);});
-      mtb.appendChild(tr);
+      if(rr.length<2)return;
+      var ops=[];
+      rr.forEach(function(rpm){
+        var rd=ed.filter(function(d){return d.rpm===rpm;});if(rd.length<3)return;
+        var xs=rd.map(function(d){return d.q;}),fP2=pFit(xs,rd.map(function(d){return d.pf;})),fE2=pFit(xs,rd.map(function(d){return d.eff;})),fW2=pFit(xs,rd.map(function(d){return d.w;}));
+        if(!fP2)return;
+        var A=fP2.a-selSys.k,B=fP2.b,C=fP2.c;if(Math.abs(A)<1e-12)return;
+        var disc=B*B-4*A*C;if(disc<0)return;
+        var q1=(-B+Math.sqrt(disc))/(2*A),q2=(-B-Math.sqrt(disc))/(2*A);
+        var mn=Math.min.apply(null,xs),mx=Math.max.apply(null,xs),qOp=null;
+        [q1,q2].forEach(function(q){if(q>0&&q>=mn*0.3&&q<=mx*1.5&&(qOp===null||q>qOp))qOp=q;});
+        if(qOp===null)return;
+        ops.push({n:rpm,q:qOp,p:selSys.k*qOp*qOp,w:fW2?fW2.ev(qOp):0,e:fE2?fE2.ev(qOp):0});
+      });
+      if(ops.length<2)return;
+      var fanCard=h('div',{style:'margin-bottom:16px'});
+      fanCard.appendChild(h('div',{style:'font-size:12px;font-weight:700;color:'+RC[si%8]+';margin-bottom:6px'},'\u25cf '+sv.cfg.name+' ('+sv.tag+')'));
+      var opTb=h('table',{class:'dt',style:'font-size:11px;margin-bottom:8px'});
+      opTb.appendChild(h('thead',null,h('tr',null,['RPM','Q [CMM]','P [Pa]','W [W]','\u03b7 [%]'].map(function(t){return h('th',null,t);}))));
+      var opTbd=h('tbody');
+      ops.forEach(function(op){var tr=h('tr');[op.n,op.q.toFixed(3),op.p.toFixed(1),op.w.toFixed(1),op.e.toFixed(1)].forEach(function(v){tr.appendChild(h('td',null,''+v));});opTbd.appendChild(tr);});
+      opTb.appendChild(opTbd);fanCard.appendChild(opTb);
+      var ns3=ops.map(function(o){return o.n;}),qs=ops.map(function(o){return o.q;}),ws=ops.map(function(o){return o.w;}),es=ops.map(function(o){return o.e;});
+      var tgt=S.mTgt,xKey=S.mMode==='q'?qs:ws;
+      var nR=lerp(xKey,ns3,tgt);
+      if(nR===null){fanCard.appendChild(h('div',{style:'color:#dc2626;font-size:11px'},'\ubcf4\uac04 \ubd88\uac00'));c4.appendChild(fanCard);return;}
+      var nQ=lerp(ns3,qs,nR),nP=selSys.k*nQ*nQ,nW=lerp(ns3,ws,nR),nE=lerp(ns3,es,nR);
+      var rBox=h('div',{style:'display:flex;gap:12px;flex-wrap:wrap;align-items:center'});
+      rBox.appendChild(h('div',{style:'padding:8px 14px;border-radius:8px;background:#eff6ff;border:1.5px solid #2563eb;font-size:12px'},
+        h('span',{style:'color:#2563eb;font-weight:800'},'\u2192 RPM = '+nR.toFixed(0)),
+        h('span',{style:'color:#475569;margin-left:10px'},'Q='+nQ.toFixed(3)+' CMM  P='+nP.toFixed(1)+' Pa  W='+nW.toFixed(1)+' W  \u03b7='+nE.toFixed(1)+'%')
+      ));
+      var isExtra=tgt<Math.min.apply(null,xKey)||tgt>Math.max.apply(null,xKey);
+      if(isExtra)rBox.appendChild(h('span',{style:'font-size:10px;color:#d97706;font-weight:600'},'\u26a0 \uc678\uc0bd (\uce21\uc815 \ubc94\uc704 \ubc16)'));
+      fanCard.appendChild(rBox);
+      c4.appendChild(fanCard);
     });
-    mt.appendChild(mtb);c4.appendChild(h('div',{style:'overflow-x:auto'},mt));
   }
-  c4.appendChild(h('div',{style:'margin-top:8px;font-size:10px;color:#94a3b8;line-height:1.5'},'\u203b \uc2dc\uc2a4\ud15c \uc800\ud56d \ucee4\ube0c('+selSys.label+', k='+selSys.k.toExponential(2)+') \uc704\uc758 \uc6b4\uc804\uc810 \uae30\uc900 | Q\u221dN, P\u221dN\u00b2, W\u221dN\u00b3'));
+  c4.appendChild(h('div',{style:'margin-top:8px;font-size:10px;color:#94a3b8;line-height:1.5'},'\u203b \uac01 RPM\uc758 \uc2dc\uc2a4\ud15c \uc800\ud56d \ucee4\ube0c \uc6b4\uc804\uc810(PQ\u00d7\u0394P=kQ\u00b2 \uad50\uc810)\uc744 \uc120\ud615 \ubcf4\uac04\ud558\uc5ec \uc5ed\uc0b0 | '+(selSys?selSys.label+' k='+selSys.k.toExponential(2):'')));
   w.appendChild(c4);
 }else w.appendChild(h('div',{class:'card'},h('div',{class:'ct'},'\ube44\uad50'),h('div',{class:'ph'},h('div',null,h('div',{style:'font-size:32px'},'\u2696\ufe0f'),h('div',{style:'margin-top:6px;font-size:12px;font-weight:600'},'2\uac1c \uc774\uc0c1 \uc120\ud0dd')))));
 return w;}
